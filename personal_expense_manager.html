@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUDGET.BOX // Neo-Brutalist Expense Manager</title>
+    
+    <!-- Tailwind CSS for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Supabase JS Client UMD -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --bg-color: #FFFDF9;
+            --card-bg: #FFFFFF;
+            --border-color: #000000;
+            --shadow-color: #000000;
+            --shadow-offset: 5px;
+            --yellow: #FFEE55;
+            --green: #7EE8B5;
+            --pink: #FF94B8;
+            --blue: #8AD1FF;
+            --purple: #D29FFF;
+            --orange: #FFB366;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#e5e0d8 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #111111;
+            overflow-x: hidden;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Neo-Brutalist Box Shadow & Borders */
+        .neo-box {
+            background-color: var(--card-bg);
+            border: 3px solid var(--border-color);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--shadow-color);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .neo-box-sm {
+            border: 2px solid var(--border-color);
+            box-shadow: 3px 3px 0px var(--border-color);
+        }
+
+        .neo-button {
+            border: 3px solid var(--border-color);
+            box-shadow: 4px 4px 0px var(--border-color);
+            font-weight: 700;
+            transition: all 0.08s ease;
+            cursor: pointer;
+        }
+
+        .neo-button:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px var(--border-color);
+        }
+
+        .neo-button:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--border-color);
+        }
+
+        .neo-input {
+            border: 3px solid var(--border-color);
+            box-shadow: 3px 3px 0px var(--border-color);
+            outline: none;
+            background: #FFF;
+            font-weight: 600;
+        }
+
+        .neo-input:focus {
+            background: #FFFDF0;
+        }
+
+        /* Papery Torn Edge Effect simulation */
+        .papery-edge {
+            position: relative;
+        }
+        .papery-edge::after {
+            content: "";
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: repeating-linear-gradient(45deg, #000, #000 10px, transparent 10px, transparent 20px);
+            opacity: 0.1;
+        }
+
+        /* Loading Screen Animation */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background-color: var(--yellow);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .loader-box {
+            animation: bounceLoader 0.8s infinite alternate;
+        }
+
+        @keyframes bounceLoader {
+            0% { transform: translateY(0) rotate(0deg); }
+            100% { transform: translateY(-15px) rotate(2deg); }
+        }
+
+        /* Custom scrollbar for Neo-Brutalist look */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FFFDF9;
+            border-left: 3px solid #000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #000;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-16">
+
+    <div id="loading-screen" class="p-6">
+        <div class="neo-box bg-white p-8 max-w-md w-full text-center loader-box">
+            <div class="inline-block bg-[#7EE8B5] border-2 border-black px-3 py-1 font-mono text-xs font-bold uppercase mb-4 shadow-[2px_2px_0px_#000]">
+                INITIALIZING V1.0
+            </div>
+            <h1 class="text-4xl font-black uppercase tracking-tight mb-2">BUDGET.BOX</h1>
+            <p class="font-mono text-sm mb-6 text-gray-700">Loading your financial matrix...</p>
+            
+            <div class="w-full bg-gray-200 border-2 border-black h-6 p-0.5 relative overflow-hidden mb-4 shadow-[2px_2px_0px_#000]">
+                <div id="progress-bar" class="h-full bg-[#FF94B8] w-0 transition-all duration-300"></div>
+            </div>
+            <div id="loading-status" class="font-mono text-xs font-bold">CONNECTING LOCAL STORAGE & SUPABASE...</div>
+        </div>
+    </div>
+
+    <header class="border-b-4 border-black bg-white sticky top-0 z-40 shadow-[0_4px_0px_#000]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-[#FFEE55] border-3 border-black p-2 shadow-[3px_3px_0px_#000] rotate-[-2deg]">
+                    <svg class="w-7 h-7 text-black" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black tracking-tighter uppercase">BUDGET.<span class="bg-[#7EE8B5] px-1 border border-black">BOX</span></h1>
+                    <p class="text-xs font-mono font-bold text-gray-600">NEO-BRUTALIST EXPENSE MANAGER</p>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center gap-3">
+                <button onclick="openSupabaseModal()" class="neo-button bg-[#8AD1FF] px-3 py-2 text-xs sm:text-sm font-mono flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0.10-9.782 0A4.002 4.002 0 003 15z"></path></svg>
+                    <span id="sync-status-badge">Supabase Sync</span>
+                </button>
+                <button onclick="exportDataCSV()" class="hidden sm:flex neo-button bg-[#FFB366] px-3 py-2 text-xs sm:text-sm font-mono items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Export CSV
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Column: Metrics & Analytics (5 Cols) -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Summary Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+                <!-- Total Balance -->
+                <div class="neo-box bg-[#FFEE55] p-5">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-mono text-xs uppercase font-bold text-black/70">Total Balance</span>
+                        <span class="bg-black text-white px-2 py-0.5 text-xs font-mono font-bold">NET</span>
+                    </div>
+                    <div id="total-balance" class="text-3xl font-black font-mono tracking-tight">₹0.00</div>
+                </div>
+
+                <!-- Total Income -->
+                <div class="neo-box bg-[#7EE8B5] p-5">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-mono text-xs uppercase font-bold text-black/70">Total Income</span>
+                        <span class="bg-black text-white px-2 py-0.5 text-xs font-mono font-bold">+INC</span>
+                    </div>
+                    <div id="total-income" class="text-3xl font-black font-mono tracking-tight text-green-900">₹0.00</div>
+                </div>
+
+                <!-- Total Expenses -->
+                <div class="neo-box bg-[#FF94B8] p-5">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-mono text-xs uppercase font-bold text-black/70">Total Expenses</span>
+                        <span class="bg-black text-white px-2 py-0.5 text-xs font-mono font-bold">-EXP</span>
+                    </div>
+                    <div id="total-expense" class="text-3xl font-black font-mono tracking-tight text-red-950">₹0.00</div>
+                </div>
+            </div>
+
+            <!-- Pie Chart Analytics Section -->
+            <div class="neo-box bg-white p-6">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b-2 border-black">
+                    <h2 class="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                        <span class="w-3 h-3 bg-[#D29FFF] border-2 border-black inline-block"></span>
+                        Category Analytics
+                    </h2>
+                    <span class="font-mono text-xs font-bold bg-gray-100 px-2 py-1 border border-black">EXPENSES ONLY</span>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center my-4">
+                    <!-- SVG Pie Chart Container -->
+                    <div class="relative w-48 h-48 sm:w-56 sm:h-56">
+                        <svg id="pie-chart" viewBox="0 0 100 100" class="w-full h-full transform -rotate-90 drop-shadow-[3px_3px_0px_#000]">
+                            <!-- Dynamically injected paths -->
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                            <span class="font-mono text-xs font-bold text-gray-500 uppercase">Spent</span>
+                            <span id="chart-center-amount" class="text-lg font-black font-mono">₹0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Breakdown Legend -->
+                <div id="category-legend" class="space-y-2 mt-6 pt-4 border-t-2 border-dashed border-black">
+                    <!-- Dynamically populated category legend items -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Add Transaction Form & Transaction List (7 Cols) -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Add Transaction Form Card -->
+            <div class="neo-box bg-white p-6 sm:p-8">
+                <div class="flex items-center justify-between mb-6 pb-3 border-b-3 border-black">
+                    <h2 class="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                        <span class="bg-[#8AD1FF] border-2 border-black p-1">➕</span>
+                        New Transaction
+                    </h2>
+                    <span class="font-mono text-xs bg-[#FFEE55] px-2 py-1 border-2 border-black font-bold">SECURE LOG</span>
+                </div>
+
+                <form id="transaction-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Type selector -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Type</label>
+                            <select id="tx-type" class="neo-input w-full p-3 text-sm font-mono cursor-pointer" onchange="updateCategoryOptions()">
+                                <option value="expense">🔴 Expense</option>
+                                <option value="income">🟢 Income</option>
+                            </select>
+                        </div>
+                        <!-- Amount -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Amount (₹)</label>
+                            <input type="number" id="tx-amount" step="0.01" min="0.01" required placeholder="e.g. 450" class="neo-input w-full p-3 text-sm font-mono">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Title / Note -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Title / Description</label>
+                            <input type="text" id="tx-title" required placeholder="e.g. Zomato Dinner, Freelance" class="neo-input w-full p-3 text-sm">
+                        </div>
+                        <!-- Category -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Category</label>
+                            <select id="tx-category" class="neo-input w-full p-3 text-sm font-mono cursor-pointer">
+                                <!-- Populated dynamically based on type -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-mono text-xs uppercase font-bold mb-1">Date</label>
+                        <input type="date" id="tx-date" required class="neo-input w-full p-3 text-sm font-mono">
+                    </div>
+
+                    <button type="submit" class="neo-button bg-[#7EE8B5] w-full py-4 text-base uppercase font-black tracking-wider flex items-center justify-center gap-2 mt-2">
+                        <span>Save Transaction</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Transaction History & Filters -->
+            <div class="neo-box bg-white p-6 sm:p-8">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-3 border-b-3 border-black">
+                    <h2 class="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                        <span class="bg-[#FFB366] border-2 border-black p-1">📋</span>
+                        Transaction History
+                    </h2>
+                    
+                    <!-- Search & Filter Controls -->
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <input type="text" id="search-input" oninput="renderTransactions()" placeholder="Search..." class="neo-input px-3 py-2 text-xs font-mono w-full sm:w-40">
+                        <select id="filter-category" onchange="renderTransactions()" class="neo-input px-3 py-2 text-xs font-mono cursor-pointer">
+                            <option value="all">All Categories</option>
+                            <option value="Food">Food</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Salary">Salary</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Transaction List Container -->
+                <div id="transaction-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <div id="supabase-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="neo-box bg-white max-w-lg w-full p-6 sm:p-8 relative">
+            <button onclick="closeSupabaseModal()" class="absolute top-4 right-4 bg-red-400 border-2 border-black px-3 py-1 font-mono font-bold hover:bg-red-500 shadow-[2px_2px_0px_#000]">✕</button>
+            
+            <div class="inline-block bg-[#D29FFF] border-2 border-black px-3 py-1 font-mono text-xs font-bold uppercase mb-3 shadow-[2px_2px_0px_#000]">
+                CLOUD SYNC READY
+            </div>
+            <h3 class="text-2xl font-black uppercase tracking-tight mb-2">Supabase Integration</h3>
+            <p class="text-xs font-mono text-gray-600 mb-6">Connect your Supabase project to sync expenses across all your team members and devices in real-time.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block font-mono text-xs uppercase font-bold mb-1">Supabase URL</label>
+                    <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co" class="neo-input w-full p-3 text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block font-mono text-xs uppercase font-bold mb-1">Supabase Anon Key</label>
+                    <input type="password" id="supabase-key" placeholder="eyJhbGciOiJIUzI1Ni..." class="neo-input w-full p-3 text-sm font-mono">
+                </div>
+                
+                <div class="bg-yellow-50 border-2 border-black p-3 text-xs font-mono">
+                    <strong>Table Schema Required:</strong><br>
+                    Create a table named <code>expenses</code> with columns: <code>id</code> (uuid/text), <code>title</code> (text), <code>amount</code> (numeric), <code>category</code> (text), <code>type</code> (text), <code>date</code> (date), <code>user_id</code> (text).
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="saveSupabaseConfig()" class="neo-button bg-[#7EE8B5] flex-1 py-3 text-sm uppercase font-black">Save & Connect</button>
+                    <button onclick="testSupabaseSync()" class="neo-button bg-[#8AD1FF] px-4 py-3 text-sm uppercase font-black">Test Sync</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-modal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 hidden">
+        <div class="neo-box bg-white max-w-sm w-full p-6 text-center">
+            <div id="notification-icon" class="text-3xl mb-2">🎉</div>
+            <h4 id="notification-title" class="text-lg font-black uppercase mb-1">Notice</h4>
+            <p id="notification-message" class="text-sm font-mono text-gray-700 mb-6">Message goes here.</p>
+            <button onclick="closeNotification()" class="neo-button bg-[#FFEE55] w-full py-2 font-black uppercase text-sm">Got it</button>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management & LocalStorage ---
+        let transactions = JSON.parse(localStorage.getItem('budget_box_txs')) || [
+            { id: '1', title: 'Monthly Salary', amount: 45000, category: 'Salary', type: 'income', date: '2026-10-01' },
+            { id: '2', title: 'Groceries Supermarket', amount: 3200, category: 'Food', type: 'expense', date: '2026-10-03' },
+            { id: '3', title: 'Uber Ride to Office', amount: 450, category: 'Travel', type: 'expense', date: '2026-10-04' },
+            { id: '4', title: 'Electricity Bill', amount: 1850, category: 'Bills', type: 'expense', date: '2026-10-05' },
+            { id: '5', title: 'New Sneakers', amount: 2999, category: 'Shopping', type: 'expense', date: '2026-10-06' }
+        ];
+
+        // Category definitions with Neo-Brutalist pastel colors
+        const categoryColors = {
+            'Food': '#FF94B8',
+            'Travel': '#8AD1FF',
+            'Bills': '#FFEE55',
+            'Shopping': '#D29FFF',
+            'Salary': '#7EE8B5',
+            'Others': '#FFB366'
+        };
+
+        const expenseCategories = ['Food', 'Travel', 'Bills', 'Shopping', 'Others'];
+        const incomeCategories = ['Salary', 'Others'];
+
+        // --- Supabase Config Variables ---
+        let supabaseClient = null;
+        let supabaseConfig = JSON.parse(localStorage.getItem('budget_box_supabase')) || { url: '', key: '' };
+
+        // --- Startup Loading Screen Animation Sequence ---
+        window.addEventListener('DOMContentLoaded', function() {
+            const progressBar = document.getElementById('progress-bar');
+            const loadingStatus = document.getElementById('loading-status');
+            const loadingScreen = document.getElementById('loading-screen');
+
+            let progress = 0;
+            const interval = setInterval(function() {
+                progress += Math.floor(Math.random() * 25) + 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    loadingStatus.textContent = "READY TO LAUNCH!";
+                    setTimeout(function() {
+                        loadingScreen.style.opacity = '0';
+                        loadingScreen.style.visibility = 'hidden';
+                    }, 400);
+                }
+                progressBar.style.width = progress + '%';
+                if (progress > 50) {
+                    loadingStatus.textContent = "BUILDING ANALYTICS & PIE CHARTS...";
+                }
+            }, 120);
+
+            // Initialize App
+            document.getElementById('tx-date').valueAsDate = new Date();
+            updateCategoryOptions();
+            initSupabaseFromStorage();
+            renderAll();
+        });
+
+        // --- Custom Notification Modal ---
+        function showNotification(title, message, icon) {
+            icon = icon || '✨';
+            document.getElementById('notification-title').textContent = title;
+            document.getElementById('notification-message').textContent = message;
+            document.getElementById('notification-icon').textContent = icon;
+            document.getElementById('notification-modal').classList.remove('hidden');
+        }
+
+        function closeNotification() {
+            document.getElementById('notification-modal').classList.add('hidden');
+        }
+
+        // --- Category Selection Handler ---
+        function updateCategoryOptions() {
+            const type = document.getElementById('tx-type').value;
+            const categorySelect = document.getElementById('tx-category');
+            const categories = type === 'expense' ? expenseCategories : incomeCategories;
+            
+            categorySelect.innerHTML = '';
+            categories.forEach(function(cat) {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                categorySelect.appendChild(opt);
+            });
+        }
+
+        // --- CRUD Operations ---
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('tx-title').value.trim();
+            const amount = parseFloat(document.getElementById('tx-amount').value);
+            const category = document.getElementById('tx-category').value;
+            const type = document.getElementById('tx-type').value;
+            const date = document.getElementById('tx-date').value;
+
+            if (!title || isNaN(amount) || amount <= 0) {
+                showNotification('Invalid Input', 'Please enter a valid title and positive amount.', '⚠️');
+                return;
+            }
+
+            const newTx = {
+                id: 'tx_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                title: title,
+                amount: amount,
+                category: category,
+                type: type,
+                date: date
+            };
+
+            transactions.unshift(newTx);
+            saveAndRefresh();
+            
+            // Reset form
+            document.getElementById('transaction-form').reset();
+            document.getElementById('tx-date').valueAsDate = new Date();
+            updateCategoryOptions();
+            showNotification('Success!', 'Transaction logged successfully.', '🚀');
+
+            // If Supabase is connected, sync insert
+            syncInsertToSupabase(newTx);
+        }
+
+        function deleteTransaction(id) {
+            transactions = transactions.filter(function(t) { return t.id !== id; });
+            saveAndRefresh();
+            showNotification('Deleted', 'Transaction removed from ledger.', '🗑️');
+        }
+
+        function saveAndRefresh() {
+            localStorage.setItem('budget_box_txs', JSON.stringify(transactions));
+            renderAll();
+        }
+
+        function renderAll() {
+            renderMetrics();
+            renderTransactions();
+            renderPieChart();
+        }
+
+        // --- Metrics Render ---
+        function renderMetrics() {
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            transactions.forEach(function(t) {
+                if (t.type === 'income') {
+                    totalIncome += t.amount;
+                } else {
+                    totalExpense += t.amount;
+                }
+            });
+
+            const balance = totalIncome - totalExpense;
+
+            document.getElementById('total-balance').textContent = '₹' + balance.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            document.getElementById('total-income').textContent = '+₹' + totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            document.getElementById('total-expense').textContent = '-₹' + totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        }
+
+        // --- Transaction List & Filtering Render ---
+        function renderTransactions() {
+            const listEl = document.getElementById('transaction-list');
+            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const filterCat = document.getElementById('filter-category').value;
+
+            const filtered = transactions.filter(function(t) {
+                const matchesSearch = t.title.toLowerCase().includes(searchVal) || t.category.toLowerCase().includes(searchVal);
+                const matchesCat = filterCat === 'all' || t.category === filterCat;
+                return matchesSearch && matchesCat;
+            });
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div class="text-center py-8 border-2 border-dashed border-black/30 p-4"><p class="font-mono text-xs uppercase text-gray-500 font-bold">No transactions found</p></div>';
+                return;
+            }
+
+            listEl.innerHTML = '';
+            filtered.forEach(function(t) {
+                const isInc = t.type === 'income';
+                const colorHex = categoryColors[t.category] || '#FFF';
+                
+                const item = document.createElement('div');
+                item.className = 'neo-box-sm bg-white p-3 sm:p-4 flex items-center justify-between gap-3 hover:translate-x-1 transition-transform';
+                item.innerHTML = '<div class="flex items-center gap-3"><div class="w-10 h-10 border-2 border-black flex items-center justify-center font-bold text-sm shadow-[2px_2px_0px_#000]" style="background-color: ' + colorHex + '">' + t.category.charAt(0) + '</div><div><h4 class="font-black text-sm sm:text-base">' + escapeHtml(t.title) + '</h4><div class="flex items-center gap-2 mt-0.5"><span class="font-mono text-[10px] bg-black text-white px-1.5 py-0.5 uppercase">' + t.category + '</span><span class="font-mono text-[10px] text-gray-500">' + t.date + '</span></div></div></div><div class="flex items-center gap-4"><span class="font-mono font-black text-sm sm:text-base ' + (isInc ? 'text-green-700' : 'text-red-700') + '">' + (isInc ? '+' : '-') + '₹' + t.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span><button onclick="deleteTransaction(\'' + t.id + '\')" class="text-gray-400 hover:text-red-600 font-mono font-bold px-2 py-1 border border-transparent hover:border-black hover:bg-red-100 transition-colors">✕</button></div>';
+                listEl.appendChild(item);
+            });
+        }
+
+        // --- SVG Pie Chart Analytics ---
+        function renderPieChart() {
+            const svg = document.getElementById('pie-chart');
+            const legendEl = document.getElementById('category-legend');
+            const centerAmountEl = document.getElementById('chart-center-amount');
+            
+            svg.innerHTML = '';
+            legendEl.innerHTML = '';
+
+            const expenseTxs = transactions.filter(function(t) { return t.type === 'expense'; });
+            const categoryTotals = {};
+            let totalExpenseSum = 0;
+
+            expenseTxs.forEach(function(t) {
+                categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                totalExpenseSum += t.amount;
+            });
+
+            centerAmountEl.textContent = '₹' + totalExpenseSum.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+            if (totalExpenseSum === 0) {
+                svg.innerHTML = '<circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" stroke-width="20" />';
+                legendEl.innerHTML = '<p class="text-center font-mono text-xs text-gray-400">No expense records to analyze.</p>';
+                return;
+            }
+
+            let cumulativePercent = 0;
+            const radius = 40;
+            const circumference = 2 * Math.PI * radius;
+
+            Object.keys(categoryTotals).forEach(function(cat) {
+                const amount = categoryTotals[cat];
+                const percentage = amount / totalExpenseSum;
+                const strokeDasharray = (percentage * circumference) + ' ' + circumference;
+                const strokeDashoffset = -cumulativePercent * circumference;
+                const color = categoryColors[cat] || '#ccc';
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', '50');
+                circle.setAttribute('cy', '50');
+                circle.setAttribute('r', radius);
+                circle.setAttribute('fill', 'transparent');
+                circle.setAttribute('stroke', color);
+                circle.setAttribute('stroke-width', '22');
+                circle.setAttribute('stroke-dasharray', strokeDasharray);
+                circle.setAttribute('stroke-dashoffset', strokeDashoffset);
+                circle.style.transition = 'stroke-dasharray 0.5s ease';
+                
+                svg.appendChild(circle);
+                cumulativePercent += percentage;
+
+                const percentDisplay = Math.round(percentage * 100);
+                const legendItem = document.createElement('div');
+                legendItem.className = 'flex items-center justify-between text-xs font-mono';
+                legendItem.innerHTML = '<div class="flex items-center gap-2"><span class="w-3 h-3 border border-black shadow-[1px_1px_0px_#000]" style="background-color: ' + color + '"></span><span class="font-bold">' + cat + '</span></div><div class="flex items-center gap-3"><span class="text-gray-500">' + percentDisplay + '%</span><span class="font-black">₹' + amount.toLocaleString('en-IN') + '</span></div>';
+                legendEl.appendChild(legendItem);
+            });
+        }
+
+        // --- CSV Export Function ---
+        function exportDataCSV() {
+            if (transactions.length === 0) {
+                showNotification('Empty Ledger', 'No transactions available to export.', '⚠️');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,ID,Title,Category,Type,Amount,Date\n";
+            transactions.forEach(function(t) {
+                csvContent += '"' + t.id + '","' + t.title.replace(/"/g, '""') + '","' + t.category + '","' + t.type + '",' + t.amount + ',"' + t.date + '"\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", 'budget_box_expenses_' + new Date().toISOString().slice(0,10) + '.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showNotification('Exported!', 'Transactions downloaded as CSV file.', '📥');
+        }
+
+        // --- Supabase Integration Handlers ---
+        function openSupabaseModal() {
+            document.getElementById('supabase-url').value = supabaseConfig.url;
+            document.getElementById('supabase-key').value = supabaseConfig.key;
+            document.getElementById('supabase-modal').classList.remove('hidden');
+        }
+
+        function closeSupabaseModal() {
+            document.getElementById('supabase-modal').classList.add('hidden');
+        }
+
+        function initSupabaseFromStorage() {
+            if (supabaseConfig.url && supabaseConfig.key) {
+                try {
+                    supabaseClient = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+                    document.getElementById('sync-status-badge').textContent = 'Supabase Connected';
+                    fetchSupabaseTransactions();
+                } catch (e) {
+                    console.error("Supabase initialization error:", e);
+                }
+            }
+        }
+
+        function saveSupabaseConfig() {
+            const url = document.getElementById('supabase-url').value.trim();
+            const key = document.getElementById('supabase-key').value.trim();
+
+            if (!url || !key) {
+                showNotification('Missing Fields', 'Please enter both Supabase URL and Anon Key.', '⚠️');
+                return;
+            }
+
+            supabaseConfig = { url: url, key: key };
+            localStorage.setItem('budget_box_supabase', JSON.stringify(supabaseConfig));
+            initSupabaseFromStorage();
+            closeSupabaseModal();
+            showNotification('Connected!', 'Supabase credentials saved successfully.', '☁️');
+        }
+
+        async function testSupabaseSync() {
+            const url = document.getElementById('supabase-url').value.trim();
+            const key = document.getElementById('supabase-key').value.trim();
+            if (!url || !key) {
+                showNotification('Missing Credentials', 'Fill in URL and Key first.', '⚠️');
+                return;
+            }
+
+            try {
+                const tempClient = window.supabase.createClient(url, key);
+                const response = await tempClient.from('expenses').select('*').limit(1);
+                if (response.error) throw response.error;
+                showNotification('Connection Verified!', 'Successfully connected to Supabase "expenses" table.', '✅');
+            } catch (err) {
+                showNotification('Connection Failed', err.message || 'Check table schema and credentials.', '❌');
+            }
+        }
+
+        async function fetchSupabaseTransactions() {
+            if (!supabaseClient) return;
+            try {
+                const response = await supabaseClient.from('expenses').select('*');
+                if (!response.error && response.data && response.data.length > 0) {
+                    transactions = response.data;
+                    saveAndRefresh();
+                }
+            } catch (err) {
+                console.log("Supabase fetch notice:", err);
+            }
+        }
+
+        async function syncInsertToSupabase(tx) {
+            if (!supabaseClient) return;
+            try {
+                const response = await supabaseClient.from('expenses').insert([tx]);
+                if (response.error) console.error("Supabase insert error:", response.error);
+            } catch (err) {
+                console.log("Supabase sync warning:", err);
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
