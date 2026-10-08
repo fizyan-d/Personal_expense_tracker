@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUDGET.BOX // Neo-Brutalist Expense Manager</title>
+
+    <!-- Tailwind CSS for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <!-- Supabase JS Client UMD -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen pb-16">
+
+    <div id="loading-screen" class="p-6">
+        <div class="neo-box bg-white p-8 max-w-md w-full text-center loader-box">
+            <div class="inline-block bg-[#7EE8B5] border-2 border-black px-3 py-1 font-mono text-xs font-bold uppercase mb-4 shadow-[2px_2px_0px_#000]">
+                INITIALIZING V1.0
+            </div>
+            <h1 class="text-4xl font-black uppercase tracking-tight mb-2">BUDGET.BOX</h1>
+            <p class="font-mono text-sm mb-6 text-gray-700">Loading your financial matrix...</p>
+
+            <div class="w-full bg-gray-200 border-2 border-black h-6 p-0.5 relative overflow-hidden mb-4 shadow-[2px_2px_0px_#000]">
+                <div id="progress-bar" class="h-full bg-[#FF94B8] w-0 transition-all duration-300"></div>
+            </div>
+            <div id="loading-status" class="font-mono text-xs font-bold">CONNECTING LOCAL STORAGE & SUPABASE...</div>
+        </div>
+    </div>
+
+    <header class="border-b-4 border-black bg-white sticky top-0 z-40 shadow-[0_4px_0px_#000]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-[#FFEE55] border-3 border-black p-2 shadow-[3px_3px_0px_#000] rotate-[-2deg]">
+                    <svg class="w-7 h-7 text-black" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black tracking-tighter uppercase">BUDGET.<span class="bg-[#7EE8B5] px-1 border border-black">BOX</span></h1>
+                    <p class="text-xs font-mono font-bold text-gray-600">NEO-BRUTALIST EXPENSE MANAGER</p>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center gap-3">
+                <button onclick="openSupabaseModal()" class="neo-button bg-[#8AD1FF] px-3 py-2 text-xs sm:text-sm font-mono flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0.10-9.782 0A4.002 4.002 0 003 15z"></path></svg>
+                    <span id="sync-status-badge">Supabase Sync</span>
+                </button>
+                <button onclick="exportDataCSV()" class="hidden sm:flex neo-button bg-[#FFB366] px-3 py-2 text-xs sm:text-sm font-mono items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Export CSV
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- Left Column: Metrics & Analytics (5 Cols) -->
+        <div class="lg:col-span-5 space-y-6">
+
+            <!-- Summary Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+                <!-- Total Balance -->
+                <div class="neo-box bg-[#FFEE55] p-5">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-mono text-xs uppercase font-bold text-black/70">Total Balance</span>
+                        <span class="bg-black text-white px-2 py-0.5 text-xs font-mono font-bold">NET</span>
+                    </div>
+                    <div id="total-balance" class="text-3xl font-black font-mono tracking-tight">₹0.00</div>
+                </div>
+
+                <!-- Total Income -->
+                <div class="neo-box bg-[#7EE8B5] p-5">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-mono text-xs uppercase font-bold text-black/70">Total Income</span>
+                        <span class="bg-black text-white px-2 py-0.5 text-xs font-mono font-bold">+INC</span>
+                    </div>
+                    <div id="total-income" class="text-3xl font-black font-mono tracking-tight text-green-900">₹0.00</div>
+                </div>
+
+                <!-- Total Expenses -->
+                <div class="neo-box bg-[#FF94B8] p-5">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-mono text-xs uppercase font-bold text-black/70">Total Expenses</span>
+                        <span class="bg-black text-white px-2 py-0.5 text-xs font-mono font-bold">-EXP</span>
+                    </div>
+                    <div id="total-expense" class="text-3xl font-black font-mono tracking-tight text-red-950">₹0.00</div>
+                </div>
+            </div>
+
+            <!-- Pie Chart Analytics Section -->
+            <div class="neo-box bg-white p-6">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b-2 border-black">
+                    <h2 class="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                        <span class="w-3 h-3 bg-[#D29FFF] border-2 border-black inline-block"></span>
+                        Category Analytics
+                    </h2>
+                    <span class="font-mono text-xs font-bold bg-gray-100 px-2 py-1 border border-black">EXPENSES ONLY</span>
+                </div>
+
+                <div class="flex flex-col items-center justify-center my-4">
+                    <!-- SVG Pie Chart Container -->
+                    <div class="relative w-48 h-48 sm:w-56 sm:h-56">
+                        <svg id="pie-chart" viewBox="0 0 100 100" class="w-full h-full transform -rotate-90 drop-shadow-[3px_3px_0px_#000]">
+                            <!-- Dynamically injected paths -->
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                            <span class="font-mono text-xs font-bold text-gray-500 uppercase">Spent</span>
+                            <span id="chart-center-amount" class="text-lg font-black font-mono">₹0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Breakdown Legend -->
+                <div id="category-legend" class="space-y-2 mt-6 pt-4 border-t-2 border-dashed border-black">
+                    <!-- Dynamically populated category legend items -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Add Transaction Form & Transaction List (7 Cols) -->
+        <div class="lg:col-span-7 space-y-6">
+
+            <!-- Add Transaction Form Card -->
+            <div class="neo-box bg-white p-6 sm:p-8">
+                <div class="flex items-center justify-between mb-6 pb-3 border-b-3 border-black">
+                    <h2 class="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                        <span class="bg-[#8AD1FF] border-2 border-black p-1">➕</span>
+                        New Transaction
+                    </h2>
+                    <span class="font-mono text-xs bg-[#FFEE55] px-2 py-1 border-2 border-black font-bold">SECURE LOG</span>
+                </div>
+
+                <form id="transaction-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Type selector -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Type</label>
+                            <select id="tx-type" class="neo-input w-full p-3 text-sm font-mono cursor-pointer" onchange="updateCategoryOptions()">
+                                <option value="expense">🔴 Expense</option>
+                                <option value="income">🟢 Income</option>
+                            </select>
+                        </div>
+                        <!-- Amount -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Amount (₹)</label>
+                            <input type="number" id="tx-amount" step="0.01" min="0.01" required placeholder="e.g. 450" class="neo-input w-full p-3 text-sm font-mono">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Title / Note -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Title / Description</label>
+                            <input type="text" id="tx-title" required placeholder="e.g. Zomato Dinner, Freelance" class="neo-input w-full p-3 text-sm">
+                        </div>
+                        <!-- Category -->
+                        <div>
+                            <label class="block font-mono text-xs uppercase font-bold mb-1">Category</label>
+                            <select id="tx-category" class="neo-input w-full p-3 text-sm font-mono cursor-pointer">
+                                <!-- Populated dynamically based on type -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-mono text-xs uppercase font-bold mb-1">Date</label>
+                        <input type="date" id="tx-date" required class="neo-input w-full p-3 text-sm font-mono">
+                    </div>
+
+                    <button type="submit" class="neo-button bg-[#7EE8B5] w-full py-4 text-base uppercase font-black tracking-wider flex items-center justify-center gap-2 mt-2">
+                        <span>Save Transaction</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Transaction History & Filters -->
+            <div class="neo-box bg-white p-6 sm:p-8">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-3 border-b-3 border-black">
+                    <h2 class="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                        <span class="bg-[#FFB366] border-2 border-black p-1">📋</span>
+                        Transaction History
+                    </h2>
+
+                    <!-- Search & Filter Controls -->
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <input type="text" id="search-input" oninput="renderTransactions()" placeholder="Search..." class="neo-input px-3 py-2 text-xs font-mono w-full sm:w-40">
+                        <select id="filter-category" onchange="renderTransactions()" class="neo-input px-3 py-2 text-xs font-mono cursor-pointer">
+                            <option value="all">All Categories</option>
+                            <option value="Food">Food</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Salary">Salary</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Transaction List Container -->
+                <div id="transaction-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <div id="supabase-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="neo-box bg-white max-w-lg w-full p-6 sm:p-8 relative">
+            <button onclick="closeSupabaseModal()" class="absolute top-4 right-4 bg-red-400 border-2 border-black px-3 py-1 font-mono font-bold hover:bg-red-500 shadow-[2px_2px_0px_#000]">✕</button>
+
+            <div class="inline-block bg-[#D29FFF] border-2 border-black px-3 py-1 font-mono text-xs font-bold uppercase mb-3 shadow-[2px_2px_0px_#000]">
+                CLOUD SYNC READY
+            </div>
+            <h3 class="text-2xl font-black uppercase tracking-tight mb-2">Supabase Integration</h3>
+            <p class="text-xs font-mono text-gray-600 mb-6">Connect your Supabase project to sync expenses across all your team members and devices in real-time.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block font-mono text-xs uppercase font-bold mb-1">Supabase URL</label>
+                    <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co" class="neo-input w-full p-3 text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block font-mono text-xs uppercase font-bold mb-1">Supabase Anon Key</label>
+                    <input type="password" id="supabase-key" placeholder="eyJhbGciOiJIUzI1Ni..." class="neo-input w-full p-3 text-sm font-mono">
+                </div>
+
+                <div class="bg-yellow-50 border-2 border-black p-3 text-xs font-mono">
+                    <strong>Table Schema Required:</strong><br>
+                    Create a table named <code>expenses</code> with columns: <code>id</code> (uuid/text), <code>title</code> (text), <code>amount</code> (numeric), <code>category</code> (text), <code>type</code> (text), <code>date</code> (date), <code>user_id</code> (text).
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="saveSupabaseConfig()" class="neo-button bg-[#7EE8B5] flex-1 py-3 text-sm uppercase font-black">Save & Connect</button>
+                    <button onclick="testSupabaseSync()" class="neo-button bg-[#8AD1FF] px-4 py-3 text-sm uppercase font-black">Test Sync</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-modal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 hidden">
+        <div class="neo-box bg-white max-w-sm w-full p-6 text-center">
+            <div id="notification-icon" class="text-3xl mb-2">🎉</div>
+            <h4 id="notification-title" class="text-lg font-black uppercase mb-1">Notice</h4>
+            <p id="notification-message" class="text-sm font-mono text-gray-700 mb-6">Message goes here.</p>
+            <button onclick="closeNotification()" class="neo-button bg-[#FFEE55] w-full py-2 font-black uppercase text-sm">Got it</button>
+        </div>
+    </div>
+
+    <!-- App logic (loaded last so the DOM and Supabase library are ready) -->
+    <script src="script.js"></script>
+</body>
+</html>

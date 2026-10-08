@@ -1,0 +1,118 @@
+:root {
+    --bg-color: #FFFDF9;
+    --card-bg: #FFFFFF;
+    --border-color: #000000;
+    --shadow-color: #000000;
+    --shadow-offset: 5px;
+    --yellow: #FFEE55;
+    --green: #7EE8B5;
+    --pink: #FF94B8;
+    --blue: #8AD1FF;
+    --purple: #D29FFF;
+    --orange: #FFB366;
+}
+
+body {
+    font-family: 'Space Grotesk', sans-serif;
+    background-color: var(--bg-color);
+    background-image: radial-gradient(#e5e0d8 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: #111111;
+    overflow-x: hidden;
+}
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Neo-Brutalist Box Shadow & Borders */
+.neo-box {
+    background-color: var(--card-bg);
+    border: 3px solid var(--border-color);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--shadow-color);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.neo-box-sm {
+    border: 2px solid var(--border-color);
+    box-shadow: 3px 3px 0px var(--border-color);
+}
+
+.neo-button {
+    border: 3px solid var(--border-color);
+    box-shadow: 4px 4px 0px var(--border-color);
+    font-weight: 700;
+    transition: all 0.08s ease;
+    cursor: pointer;
+}
+
+.neo-button:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--border-color);
+}
+
+.neo-button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px var(--border-color);
+}
+
+.neo-input {
+    border: 3px solid var(--border-color);
+    box-shadow: 3px 3px 0px var(--border-color);
+    outline: none;
+    background: #FFF;
+    font-weight: 600;
+}
+
+.neo-input:focus {
+    background: #FFFDF0;
+}
+
+/* Papery Torn Edge Effect simulation */
+.papery-edge {
+    position: relative;
+}
+.papery-edge::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: repeating-linear-gradient(45deg, #000, #000 10px, transparent 10px, transparent 20px);
+    opacity: 0.1;
+}
+
+/* Loading Screen Animation */
+#loading-screen {
+    position: fixed;
+    inset: 0;
+    background-color: var(--yellow);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.loader-box {
+    animation: bounceLoader 0.8s infinite alternate;
+}
+
+@keyframes bounceLoader {
+    0% { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(-15px) rotate(2deg); }
+}
+
+/* Custom scrollbar for Neo-Brutalist look */
+::-webkit-scrollbar {
+    width: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #FFFDF9;
+    border-left: 3px solid #000;
+}
+::-webkit-scrollbar-thumb {
+    background: #000;
+}
